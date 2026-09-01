@@ -4,8 +4,28 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { Board } from '../js/board.js';
+import {
+  AggressiveAI,
+  DeceptiveAI,
+  HuntTargetAI,
+  ProbabilityAI,
+  RandomAI,
+  createAI,
+} from '../js/ai.js';
 import { Game, PHASE } from '../js/game.js';
-import { BOARD_SIZE, FLEET, HORIZONTAL, VERTICAL, TOTAL_SHIP_CELLS } from '../js/constants.js';
+import {
+  AI_PERSONALITIES,
+  ARMADA_FLEET,
+  BASE_MODES,
+  BOARD_SIZE,
+  FLEET,
+  GAME_VARIANTS,
+  HORIZONTAL,
+  TOTAL_SHIP_CELLS,
+  VERTICAL,
+  createGameConfig,
+  createSeededRandom,
+} from '../js/constants.js';
 
 const repoRoot = fileURLToPath(new URL('..', import.meta.url));
 const readRepoFile = (relative) => readFileSync(repoRoot + relative, 'utf8');
@@ -19,6 +39,21 @@ function check(label, condition) {
     failures += 1;
     console.log(`  FAIL ${label}`);
   }
+}
+
+const boardSignature = (board) =>
+  board.ships
+    .map((ship) => `${ship.id}:${ship.row},${ship.col},${ship.orientation}`)
+    .join('|');
+
+function openWater(board) {
+  const cells = [];
+  for (let row = 0; row < board.size; row += 1) {
+    for (let col = 0; col < board.size; col += 1) {
+      if (!board.shipAt(row, col) && !board.alreadyShot(row, col)) cells.push({ row, col });
+    }
+  }
+  return cells;
 }
 
 function placementRules() {
@@ -164,11 +199,414 @@ function fullGames(games = 500) {
   console.log(`  info player (random shots) won ${playerWins}/${games}`);
 }
 
+function configurationRules() {
+  console.log('configurations + seeded placement');
+  const defaults = createGameConfig();
+  check(
+    'default config preserves Classic 10x10 rules',
+    defaults.mode === BASE_MODES.CLASSIC &&
+      defaults.variant === GAME_VARIANTS.STANDARD &&
+      defaults.boardSize === BOARD_SIZE &&
+      defaults.fleet.length === FLEET.length &&
+      defaults.shotsPerTurn === 1 &&
+      defaults.playerAmmo === null &&
+      !defaults.oneShotSinks
+  );
+
+  const compact = createGameConfig({ variant: GAME_VARIANTS.COMPACT });
+  const compactBoard = new Board({
+    size: compact.boardSize,
+    fleet: compact.fleet,
+    rng: createSeededRandom('compact'),
+  });
+  check('compact variant selects an 8x8 board', compact.boardSize === 8);
+  check('classic fleet fits a seeded compact board', compactBoard.placeRandomly());
+  check(
+    'compact placement stays inside 8x8 bounds',
+    compactBoard.ships.every((ship) =>
+      ship.cells.every((cell) => cell.row < 8 && cell.col < 8)
+    )
+  );
+
+  const armada = createGameConfig({ variant: GAME_VARIANTS.ARMADA });
+  const patrol = armada.fleet.find((ship) => ship.id === 'patrol');
+  check(
+    'armada adds a patrol boat mapped to existing art',
+    armada.fleet.length === ARMADA_FLEET.length && patrol?.assetId === 'destroyer'
+  );
+
+  const first = new Board({ rng: createSeededRandom('same-board') });
+  const second = new Board({ rng: createSeededRandom('same-board') });
+  const third = new Board({ rng: createSeededRandom('different-board') });
+  first.placeRandomly();
+  second.placeRandomly();
+  third.placeRandomly();
+  check('same seed reproduces the exact fleet', boardSignature(first) === boardSignature(second));
+  check('different seed changes the fleet', boardSignature(first) !== boardSignature(third));
+
+  const dailyA = new Game({
+    playerRng: createSeededRandom('player-a'),
+    enemyRng: createSeededRandom('enemy:2099-01-01'),
+  });
+  dailyA.playerBoard.placeRandomly();
+  // Consume extra player randomness; it must not shift the daily enemy board.
+  dailyA.playerBoard.placeRandomly();
+  dailyA.startBattle();
+  const dailyB = new Game({
+    playerRng: createSeededRandom('player-b'),
+    enemyRng: createSeededRandom('enemy:2099-01-01'),
+  });
+  dailyB.playerBoard.placeRandomly();
+  dailyB.startBattle();
+  check(
+    'daily enemy seed is independent of player randomize calls',
+    boardSignature(dailyA.enemyBoard) === boardSignature(dailyB.enemyBoard)
+  );
+}
+
+function personalityRules() {
+  console.log('ai personalities');
+  const expectedClasses = {
+    easy: RandomAI,
+    random: RandomAI,
+    medium: HuntTargetAI,
+    hunter: HuntTargetAI,
+    hard: ProbabilityAI,
+    probability: ProbabilityAI,
+    aggressive: AggressiveAI,
+    deceptive: DeceptiveAI,
+  };
+
+  Object.entries(expectedClasses).forEach(([name, Expected]) => {
+    const ai = createAI(name, { size: 8, rng: createSeededRandom(`ai:${name}`) });
+    const seen = new Set();
+    let valid = ai instanceof Expected;
+    for (let count = 0; count < 64; count += 1) {
+      const shot = ai.nextShot();
+      const key = shot && `${shot.row},${shot.col}`;
+      valid =
+        valid &&
+        Boolean(shot) &&
+        shot.row >= 0 &&
+        shot.row < 8 &&
+        shot.col >= 0 &&
+        shot.col < 8 &&
+        !seen.has(key);
+      if (shot) {
+        seen.add(key);
+        ai.registerResult(shot.row, shot.col, {
+          result: 'miss',
+          sunk: false,
+          ship: null,
+          affectedCells: [shot],
+        });
+      }
+    }
+    valid = valid && ai.nextShot() === null;
+    check(`${name} AI respects size and never repeats`, valid);
+  });
+  check(
+    'difficulty aliases are public',
+    AI_PERSONALITIES.EASY === 'easy' &&
+      AI_PERSONALITIES.MEDIUM === 'medium' &&
+      AI_PERSONALITIES.HARD === 'hard'
+  );
+}
+
+function turnQuotaRules() {
+  console.log('turn quotas + variants');
+  const standard = new Game({ rng: createSeededRandom('standard') });
+  standard.playerBoard.placeRandomly();
+  standard.startBattle();
+  const standardMiss = openWater(standard.enemyBoard)[0];
+  standard.playerFire(standardMiss.row, standardMiss.col);
+  check('standard switches after one player shot', standard.phase === PHASE.AI_TURN);
+
+  const rapid = new Game({ variant: GAME_VARIANTS.RAPID, rng: createSeededRandom('rapid') });
+  rapid.playerBoard.placeRandomly();
+  rapid.startBattle();
+  const rapidMisses = openWater(rapid.enemyBoard).slice(0, 3);
+  rapid.playerFire(rapidMisses[0].row, rapidMisses[0].col);
+  rapid.playerFire(rapidMisses[1].row, rapidMisses[1].col);
+  check(
+    'rapid mode holds the player turn for first two shots',
+    rapid.phase === PHASE.PLAYER_TURN && rapid.turnShotsRemaining === 1
+  );
+  rapid.playerFire(rapidMisses[2].row, rapidMisses[2].col);
+  check(
+    'rapid mode switches on its third shot',
+    rapid.phase === PHASE.AI_TURN && rapid.turnShotQuota === 3
+  );
+
+  const salvo = new Game({ variant: GAME_VARIANTS.SALVO, rng: createSeededRandom('salvo') });
+  salvo.playerBoard.placeRandomly();
+  const sunkBeforeStart = salvo.playerBoard.ships.at(-1);
+  sunkBeforeStart.cells.forEach((cell) => salvo.playerBoard.receiveShot(cell.row, cell.col));
+  salvo.startBattle();
+  check(
+    'salvo quota equals surviving ships',
+    salvo.turnShotQuota === FLEET.length - 1
+  );
+  const salvoMisses = openWater(salvo.enemyBoard).slice(0, salvo.turnShotQuota);
+  salvoMisses.forEach((cell) => salvo.playerFire(cell.row, cell.col));
+  check(
+    'enemy receives its own surviving-fleet salvo',
+    salvo.phase === PHASE.AI_TURN && salvo.turnShotQuota === FLEET.length
+  );
+  for (let shot = 1; shot < FLEET.length; shot += 1) salvo.aiFire();
+  check('enemy stays active until its final salvo shot', salvo.phase === PHASE.AI_TURN);
+  salvo.aiFire();
+  check('salvo returns control after the full volley', salvo.phase === PHASE.PLAYER_TURN);
+
+  const oneShotFleet = [{ id: 'duo', name: 'Duo', size: 2 }];
+  const oneShot = new Game({
+    variant: GAME_VARIANTS.ONE_SHOT,
+    boardSize: 4,
+    fleet: oneShotFleet,
+    rng: createSeededRandom('one-shot'),
+  });
+  oneShot.playerBoard.place(oneShotFleet[0], 3, 0, HORIZONTAL);
+  oneShot.startBattle();
+  const enemyShip = oneShot.enemyBoard.ships[0];
+  const strike = enemyShip.cells[0];
+  const oneShotOutcome = oneShot.playerFire(strike.row, strike.col);
+  check(
+    'one-shot hit sinks the entire ship and wins',
+    oneShotOutcome.sunk &&
+      oneShotOutcome.affectedCells.length === 2 &&
+      oneShot.enemyBoard.allSunk() &&
+      oneShot.winner === 'player' &&
+      oneShot.endReason === 'fleet-destroyed'
+  );
+}
+
+function limitedAmmoAndOutcomeRules() {
+  console.log('ammo + win/loss + event history');
+  const limited = new Game({
+    variant: GAME_VARIANTS.LIMITED,
+    aiPersonality: 'easy',
+    aiRng: () => 0,
+    enemyRng: createSeededRandom('limited-enemy'),
+  });
+  const rows = [9, 8, 7, 6, 5];
+  limited.fleet.forEach((ship, index) =>
+    limited.playerBoard.place(ship, rows[index], 0, HORIZONTAL)
+  );
+  limited.startBattle();
+  const guaranteedMisses = openWater(limited.enemyBoard).slice(0, 32);
+  guaranteedMisses.forEach((cell, index) => {
+    if (limited.phase === PHASE.PLAYER_TURN) limited.playerFire(cell.row, cell.col);
+    if (index < 31 && limited.phase === PHASE.AI_TURN) limited.aiFire();
+  });
+  check(
+    'limited mode ends as a loss exactly after shot 32',
+    limited.playerStats.shots === 32 &&
+      limited.playerAmmoRemaining === 0 &&
+      limited.phase === PHASE.OVER &&
+      limited.winner === 'enemy' &&
+      limited.endReason === 'ammo-exhausted'
+  );
+
+  const duelFleet = [{ id: 'duo', name: 'Duo', size: 2 }];
+  const playerWin = new Game({
+    boardSize: 4,
+    fleet: duelFleet,
+    aiPersonality: 'easy',
+    aiRng: () => 0,
+    enemyRng: createSeededRandom('player-win'),
+  });
+  playerWin.playerBoard.place(duelFleet[0], 3, 0, HORIZONTAL);
+  playerWin.startBattle();
+  const targetCells = [...playerWin.enemyBoard.ships[0].cells];
+  playerWin.playerFire(targetCells[0].row, targetCells[0].col);
+  playerWin.aiFire();
+  playerWin.playerFire(targetCells[1].row, targetCells[1].col);
+  check(
+    'destroying the final enemy segment records a player win',
+    playerWin.winner === 'player' && playerWin.endReason === 'fleet-destroyed'
+  );
+
+  const soloFleet = [{ id: 'solo', name: 'Solo', size: 1 }];
+  const enemyWin = new Game({
+    boardSize: 2,
+    fleet: soloFleet,
+    aiPersonality: 'easy',
+    aiRng: () => 0,
+    enemyRng: createSeededRandom('enemy-win'),
+  });
+  enemyWin.playerBoard.place(soloFleet[0], 0, 0, HORIZONTAL);
+  enemyWin.startBattle();
+  const miss = openWater(enemyWin.enemyBoard)[0];
+  enemyWin.playerFire(miss.row, miss.col);
+  enemyWin.aiFire();
+  check(
+    'destroying the final player segment records an enemy win',
+    enemyWin.winner === 'enemy' && enemyWin.endReason === 'fleet-destroyed'
+  );
+
+  let observed = 0;
+  const events = new Game({ rng: createSeededRandom('events') });
+  events.playerBoard.placeRandomly();
+  events.startBattle();
+  const unsubscribe = events.onShot(() => {
+    observed += 1;
+  });
+  const eventMiss = openWater(events.enemyBoard)[0];
+  const fired = events.playerFire(eventMiss.row, eventMiss.col);
+  unsubscribe();
+  check(
+    'shots are observable and replay-safe',
+    observed === 1 &&
+      fired.event.id === 1 &&
+      events.getShotEvents()[0].actor === 'player' &&
+      events.getShotEvents()[0].result === 'miss'
+  );
+}
+
+function powerEngineHooks() {
+  console.log('power-mode engine hooks');
+  const classic = new Game({ rng: createSeededRandom('classic-hook') });
+  classic.playerBoard.placeRandomly();
+  classic.startBattle();
+  check('power hooks do not alter Classic mode', classic.scanEnemy(0, 0) === null);
+
+  const power = new Game({
+    mode: BASE_MODES.POWER,
+    rng: createSeededRandom('power-hooks'),
+  });
+  power.playerBoard.placeRandomly();
+  power.startBattle();
+  const scan = power.scanEnemy(0, 0, 1);
+  const initialQuota = power.turnShotsRemaining;
+  const extra = power.grantExtraShots(1);
+  check(
+    'Power scan returns bounded cells and a contact count',
+    scan?.type === 'scan' && scan.cells.length === 4 && Number.isInteger(scan.contacts)
+  );
+  check(
+    'Power extra shot extends the active quota',
+    extra?.amount === 1 && power.turnShotsRemaining === initialQuota + 1
+  );
+}
+
+function integrationConsistencyRules() {
+  console.log('event, ammo, and repair consistency');
+  const eventFleet = [{ id: 'duo', name: 'Duo', size: 2 }];
+  const events = new Game({
+    boardSize: 4,
+    fleet: eventFleet,
+    aiPersonality: 'easy',
+    aiRng: () => 0,
+    enemyRng: createSeededRandom('event-semantics'),
+  });
+  events.playerBoard.place(eventFleet[0], 3, 0, HORIZONTAL);
+  events.startBattle();
+  const miss = openWater(events.enemyBoard)[0];
+  const playerShot = events.playerFire(miss.row, miss.col);
+  const enemyShot = events.aiFire();
+  check(
+    'player event reports shooter quota before the transition',
+    playerShot.event.turn === 1 &&
+      playerShot.event.turnQuota === 1 &&
+      playerShot.event.shotsRemaining === 0 &&
+      playerShot.event.phaseAfter === PHASE.AI_TURN &&
+      playerShot.event.nextTurnShotsRemaining === 1
+  );
+  check(
+    'last enemy shot remains in its original turn',
+    enemyShot.event.turn === 1 &&
+      enemyShot.event.shotsRemaining === 0 &&
+      enemyShot.event.phaseAfter === PHASE.PLAYER_TURN &&
+      enemyShot.event.nextTurnShotsRemaining === 1 &&
+      events.turnNumber === 2
+  );
+
+  const limited = new Game({
+    mode: BASE_MODES.POWER,
+    variant: GAME_VARIANTS.LIMITED,
+    playerAmmo: 2,
+    aiPersonality: 'easy',
+    aiRng: () => 0,
+    enemyRng: createSeededRandom('limited-extra-boundary'),
+  });
+  limited.playerBoard.placeRandomly();
+  limited.startBattle();
+  const partialGrant = limited.grantExtraShots(2);
+  const misses = openWater(limited.enemyBoard).slice(0, 2);
+  limited.playerFire(misses[0].row, misses[0].col);
+  limited.playerFire(misses[1].row, misses[1].col);
+  check(
+    'extra shots are capped by remaining limited ammo',
+    partialGrant?.amount === 1 &&
+      limited.playerStats.shots === 2 &&
+      limited.playerAmmoRemaining === 0 &&
+      limited.endReason === 'ammo-exhausted'
+  );
+
+  const finalRound = new Game({
+    mode: BASE_MODES.POWER,
+    variant: GAME_VARIANTS.LIMITED,
+    playerAmmo: 1,
+    rng: createSeededRandom('no-extra-ammo'),
+  });
+  finalRound.playerBoard.placeRandomly();
+  finalRound.startBattle();
+  check(
+    'extra-shot activation fails cleanly when quota already consumes final ammo',
+    finalRound.grantExtraShots(1) === null &&
+      finalRound.turnShotQuota === 1 &&
+      finalRound.turnShotsRemaining === 1
+  );
+
+  const repairFleet = [{ id: 'duo', name: 'Duo', size: 2 }];
+  const repair = new Game({
+    mode: BASE_MODES.POWER,
+    boardSize: 4,
+    fleet: repairFleet,
+    aiPersonality: 'hard',
+    rng: createSeededRandom('repair-integration'),
+  });
+  repair.playerBoard.place(repairFleet[0], 3, 0, HORIZONTAL);
+  repair.startBattle();
+  const damaged = repair.playerBoard.receiveShot(3, 0);
+  repair.ai.registerResult(3, 0, damaged);
+  const repaired = repair.repairPlayerShip('duo');
+  check(
+    'Game repair restores an unsunk segment in Board and AI state',
+    repaired?.restoredCells.length === 1 &&
+      !repair.playerBoard.alreadyShot(3, 0) &&
+      !repair.ai.tried.has('3,0') &&
+      !repair.ai.results.has('3,0') &&
+      repair.ai.remainingShipSizes.includes(2)
+  );
+
+  [HuntTargetAI, AggressiveAI, DeceptiveAI].forEach((Strategy) => {
+    const hunter = new Strategy({ size: 4, rng: () => 0 });
+    hunter.registerResult(1, 1, {
+      result: 'hit',
+      sunk: false,
+      affectedCells: [{ row: 1, col: 1 }],
+    });
+    hunter.forget(1, 1);
+    check(
+      `${Strategy.name} clears stale targets when its only hit is repaired`,
+      hunter.currentHits.length === 0 && hunter.targets.length === 0
+    );
+  });
+  repair.playerBoard.receiveShot(3, 0);
+  repair.playerBoard.receiveShot(3, 1);
+  check(
+    'Game repair rejects sunk ships to preserve sink stats and AI model',
+    repair.playerBoard.allSunk() && repair.repairPlayerShip('duo') === null
+  );
+}
+
 function renderingLayers() {
   console.log('rendering layers');
   const html = readRepoFile('index.html');
   const css = readRepoFile('css/styles.css');
-  const boardMarkup = html.slice(html.indexOf('<section class="boards">'));
+  const main = readRepoFile('js/main.js');
+  const boardMarkup = html;
 
   ['player', 'enemy'].forEach((side) => {
     const shipAt = boardMarkup.indexOf(`id="${side}-ships"`);
@@ -181,12 +619,35 @@ function renderingLayers() {
 
   check('shot markers are styled on the marker layer, not the cell', css.includes('.marker-hit::after') && !css.includes('.cell.hit::after'));
   check('page declares a favicon', html.includes('rel="icon"'));
+  check(
+    'board containers expose valid non-grid semantics',
+    !html.includes('role="grid"') &&
+      html.includes('id="player-grid" role="group"') &&
+      html.includes('id="replay-grid-player"') &&
+      html.includes('role="img"')
+  );
+  check(
+    'history replay control retains a 44px touch target',
+    /\.history-replay\s*\{[^}]*min-height:\s*44px/s.test(css)
+  );
+  const airstrikeAction = main.indexOf("const actionEvent = recordAbility('powerup-airstrike'");
+  const airstrikeExecution = main.indexOf('const outcomes = executeAirstrike', airstrikeAction);
+  check(
+    'Airstrike action is recorded before its shot outcomes execute',
+    airstrikeAction !== -1 && airstrikeExecution > airstrikeAction
+  );
 }
 
 placementRules();
 boundaryRules();
 shotResolution();
 fullGames();
+configurationRules();
+personalityRules();
+turnQuotaRules();
+limitedAmmoAndOutcomeRules();
+powerEngineHooks();
+integrationConsistencyRules();
 renderingLayers();
 
 console.log(failures === 0 ? '\nAll checks passed.' : `\n${failures} check(s) failed.`);
