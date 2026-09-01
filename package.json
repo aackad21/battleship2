@@ -1,11 +1,14 @@
 {
   "name": "battleship",
   "version": "1.0.0",
-  "description": "Dependency-free browser Battleship against a hunt/target AI",
+  "description": "Dependency-free browser Battleship with Classic and Power modes",
   "type": "module",
   "private": true,
   "scripts": {
     "start": "python3 -m http.server 8000",
-    "test": "node tests/simulate.mjs"
+    "test": "npm run test:engine && npm run test:powers && npm run test:profile",
+    "test:engine": "node tests/simulate.mjs",
+    "test:powers": "node tests/powers.mjs",
+    "test:profile": "node tests/profile.mjs"
   }
 }
