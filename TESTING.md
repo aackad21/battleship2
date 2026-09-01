@@ -1,120 +1,177 @@
-# Testing & Debugging Log
+# Testing and debugging guide
 
-How this game was validated, every bug that was found, how it was found, and how it was fixed.
+This document separates automated engine coverage from black-box browser
+acceptance. Browser results must be recorded only after executing the current
+build; the detailed manual procedure is in
+[`docs/acceptance-test-plan.md`](docs/acceptance-test-plan.md).
 
-- App under test: `http://localhost:8000/index.html` (`python3 -m http.server 8000` from the repo root)
-- Headless checks: `node tests/simulate.mjs` (or `npm test`)
-- Browsers: Chrome (desktop 1280x800, 1024x768; emulated 820x1100 and 390x844)
+## Test commands
 
-## 1. Rules the tests assert
+From the repository root:
 
-| # | Rule |
+```bash
+npm test
+```
+
+The aggregate command runs all three dependency-free Node suites in order:
+
+```bash
+npm run test:engine
+npm run test:powers
+npm run test:profile
+```
+
+To exercise the UI, start a local server and open the displayed URL in a browser:
+
+```bash
+npm start
+# http://localhost:8000/index.html
+```
+
+## Automated coverage
+
+| Suite | Coverage |
 |---|---|
-| R1 | 10x10 grid per side, labelled A–J across, 1–10 down |
-| R2 | Fleet: Carrier 5, Battleship 4, Cruiser 3, Submarine 3, Destroyer 2 (17 cells) |
-| R3 | Ships are horizontal or vertical only; never diagonal |
-| R4 | Ships may touch, never overlap, never leave the board |
-| R5 | Invalid placements are blocked and previewed in red |
-| R6 | Battle cannot start until all 5 player ships are placed |
-| R7 | Computer fleet is random and hidden until sunk (or game over) |
-| R8 | Turns strictly alternate — one shot each, hit or miss |
-| R9 | A cell can be fired at only once per side |
-| R10 | A ship sinks when all its cells are hit; sunk enemy ships are revealed |
-| R11 | Game ends when one side's 17 cells are all hit; win/defeat screen shown |
-| R12 | Restart / Play again fully resets boards, stats, log and phase |
-| R13 | Stats: shots, hits, accuracy = hits/shots, ships sunk — per side |
-| R14 | Sound toggle mutes all SFX and persists across reload |
-| R15 | Miss = splash SFX + ring FX; hit = explosion SFX + blast/smoke FX; sinking animation |
+| `tests/simulate.mjs` | Fleet placement and boundaries; shot/sink resolution; 500 complete standard games; win/loss and event semantics; deterministic seeded fleets; all seven variants; all five AI implementations and aliases; turn quotas; 32-shot ammunition loss; Power-mode engine gates; repair/AI consistency including Hunter-family target reset; render layers; accessibility semantics; touch-target and Airstrike-order integration invariants. |
+| `tests/powers.mjs` | Ability charges; earned power-up inventory; bounded scan/cross areas; contact scans; repair; Limited-ammo extra-shot capacity; per-impact Airstrike chronology and One-shot quota safety; Decoy and Stealth interception before a loss commits; One-shot affected cells; Rapid/Salvo defensive duration and quota consistency. |
+| `tests/profile.mjs` | Local persistence and fallback memory storage; career totals; all six achievements; 20-match history bound; daily best records; deterministic PRNG; replay shot/action frames, multi-cell hits, per-cell results, and repaired cells. |
 
-## 2. Test execution summary
+These suites test model and persistence behaviour without a DOM. They do not
+prove layout, pointer/keyboard interaction, browser audio, focus management,
+asset loading, or console cleanliness.
 
-### 2.1 Headless suite — `node tests/simulate.mjs`
+## Browser acceptance coverage to execute
 
-| Suite | Checks | Result |
-|---|---|---|
-| placement rules | in-bounds placement, out-of-bounds rejection, overlap rejection, touching allowed, rotation-overlap rejection, rotation keeps a single instance, random fleet = 17 distinct cells | pass |
-| boundaries | placements flush against all four edges, overflow rejected past each edge (including negative origins from drag anchors), rotation that would overflow is rejected and leaves the ship unchanged, random fleet never leaves the board | pass |
-| shot resolution | miss, hit, final hit reports sunk, hit list never double-counts, `allSunk()` | pass |
-| ai + turn order (500 games) | strict alternation, shot counts never diverge by more than one, AI never repeats a cell, hunt/target averages ~58 shots (< 80 budget), every game terminates, no win declared with ships afloat | pass |
-| rendering layers | marker layer is painted after the ship layer on both boards, markers styled on the marker layer rather than the cell, page declares a favicon | pass |
+The final run should cover at least:
 
-### 2.2 Black-box UI acceptance run (S1–S8)
+- Classic and Power happy paths;
+- Standard, Salvo, Rapid fire, One-shot, Compact, Armada, and Limited ammo;
+- Random, Hunter, Probability, Aggressive, and Deceptive commanders;
+- player victory, fleet-destroyed loss, and ammunition-exhausted loss;
+- placement edges, invalid overlap/overflow, repeated targets, and board corners;
+- rapid clicks, repeated keyboard input, restarting during an AI delay, and
+  double activation of result/replay controls;
+- deterministic same-day Daily operation and locally retained best score;
+- Power abilities, earned power-ups, repair, and defensive interception;
+- match history, stats, every replay step, achievements, and cosmetic
+  persistence;
+- repeated playthroughs and reload/reset boundaries;
+- keyboard-only operation, dialog focus, and disabled enemy-grid state;
+- wide desktop, tablet, 390 px mobile, and 320 px narrow-mobile layouts; and
+- browser console errors/warnings, unhandled promise rejections, and asset 404s.
 
-Full plan: happy path, win/loss, boundaries, rapid input, restart, repeated playthroughs, responsive layout, console.
+Record the browser, version, viewport, date/time zone, commit, and whether local
+storage began empty. Do not treat an earlier Classic-only run as evidence for the
+expanded build.
 
-| ID | Test | Outcome |
-|---|---|---|
-| S1.1 | Initial screen: two 10x10 grids, 5-ship tray, Start battle disabled | pass |
-| S1.2 | Click-to-place anchors the ship at the clicked cell (Carrier C3 → C3–G3) | pass |
-| S1.3 | Pointer drag from tray with live preview, drops under the cursor | pass |
-| S1.4 | Dragging a placed ship repositions it, honouring the grabbed segment | pass |
-| S1.5 | Rotation via Rotate button, `R` key and right-click; vertical sprites align to their cells | pass |
-| S1.6 | Randomize → 5 ships / 17 cells; Clear → empty board, Start disabled | pass |
-| S1.7 | Start battle hides setup, keeps your fleet visible, hides enemy fleet, activates enemy grid | pass |
-| S1.8 | Hit → blast FX + marker + log + stats; miss → splash; AI replies once | pass |
-| S2.1 | Victory: all 17 enemy cells hit → overlay, final stats, enemy fleet revealed | pass |
-| S2.2 | Defeat: clustered fleet + deliberately wasted shots → banner "The computer sank your fleet.", Defeat overlay, computer Ships sunk reached 5 | pass |
-| S2.3 | No shots accepted after the game ends | pass |
-| S2.4 | Accuracy equals hits/shots for both sides at every checkpoint | pass |
-| S3.1 | Placements flush against edges/corners accepted | pass |
-| S3.2 | Overflow past each edge → red preview, click rejected | pass |
-| S3.3 | Overlapping placement → red preview, click rejected | pass |
-| S3.4 | Adjacent (touching) ships accepted | pass |
-| S3.5 | Firing at corners/edges resolves normally | pass |
-| S3.6 | Rotation at a boundary that would overflow is rejected; ship not lost or duplicated | pass (now covered headlessly) |
-| S4.1 | Double/triple-click one enemy cell → exactly one shot | pass |
-| S4.2 | Burst of clicks on distinct enemy cells → one shot per turn | pass (see BUG-3) |
-| S4.3 | Randomize ×6 then Rotate ×6 → always 5 ships / 17 cells / 5 sprites | pass |
-| S4.4 | Restart immediately after firing → clean board, no stray AI shot | pass |
-| S4.5 | Held `R` autorepeat during setup → no duplication, no errors | pass |
-| S4.6 | Double-click Play again → single clean reset | pass |
-| S5.1–5.3 | Restart during setup, mid-battle, and from the overlay reset boards, stats, log, banner, phase | pass |
-| S5.4 | Sound preference survives Restart | pass |
-| S6.1 | Three back-to-back playthroughs, no state bleed | pass |
-| S6.2 | Enemy layout differs per game | pass |
-| S6.3 | No sprite/FX/log accumulation after resets (0 sprites, 0 fx, 0 log rows) | pass |
-| S7.1–7.5 | 1280x800, 1024x768, 820x1100, 390x844: square grids, no horizontal overflow, sprites aligned, overlay readable; full game played at 390x844 | pass |
-| S8.1 | No JS errors or warnings across all suites | pass |
-| S8.2 | No asset 404s | pass after BUG-2 |
-| S8.3 | Sound enabled: no unhandled `audio.play()` rejection on first interaction | pass |
-| S8.4 | Reload mid-battle → clean setup state, no errors | pass |
+## Current execution record
 
-## 3. Bugs found and fixed
+The expanded build was verified on 2026-09-01 from `codex/power-mode` before its
+release commit. The shell did not expose `npm`, so the three scripts referenced
+by `npm test` were executed directly with the bundled Node runtime. Each command
+completed successfully.
 
-### BUG-1 (high) — Hit/miss markers and FX were hidden underneath ship sprites
+| Run | Environment | Result | Evidence / notes |
+|---|---|---|---|
+| Headless aggregate | Bundled Node, macOS | Pass | Syntax check plus `tests/simulate.mjs`, `tests/powers.mjs`, and `tests/profile.mjs`; 500 simulated complete games and all deterministic assertions passed. `git diff --check` also passed. |
+| Desktop browser | Codex in-app Chromium, 1280 px | Pass | Completed Classic victory/defeat and Power happy paths; verified abilities, earned power-ups, Daily determinism, One-shot, Restart during the result delay, replay, history, cosmetics, keyboard-only deployment/battle, and clean fresh-page console capture. A completed Airstrike replay showed the action at step 35 before its impact at step 36. |
+| Tablet/mobile browser | Same browser, 1024/768/390/320 px | Pass | At each width `scrollWidth === clientWidth`; boards stayed square and changed from two columns to one as space narrowed. Compact rendered 64 cells/eight columns at 320 px; history replay targets are 44 px. |
 
-- **How it was identified:** UI acceptance run S1.8/S2.2. The AI scored hits on the player's fleet, the cells carried the `hit` class in the DOM, but nothing was visible on screen. Confirmed by marking two carrier cells `hit` from the console and screenshotting: no marker appeared over the sprite.
-- **Repro (before fix):** start a battle → let the AI hit one of your ships → look at the hit cell.
-- **Expected:** orange hit marker plus blast/smoke FX on top of the ship.
-- **Actual:** nothing visible; markers only showed on empty water. Same for enemy ships once revealed.
-- **Root cause:** markers and FX were rendered inside the cell (`.cell.hit::after`, FX appended to the cell), while `.ship-layer` is a sibling occupying the same grid area and declared later in the document. Its absolutely-positioned sprites therefore paint above the cells' pseudo-elements.
-- **Fix:** added a dedicated `.marker-layer` after the ship layer on each board. `js/main.js` now renders markers and FX into that layer via `placeInLayer()`, positioned by grid percentage, and `clearShotClasses()` empties it on reset. The `.cell.hit/.miss::after` styles were replaced by `.marker-hit/.marker-miss`.
-- **Regression tests:** headless `rendering layers` suite asserts the marker layer is declared after the ship layer for both boards and that markers are styled on the marker layer, not the cell. Visual evidence after the fix: orange markers sitting on top of the carrier, cruiser and destroyer sprites.
+## Pre-implementation findings requiring regression coverage
 
-### BUG-2 (low) — `GET /favicon.ico → 404`
+The expanded work began only after these findings were reported and prioritized.
+Their presence here defines mandatory regressions; it is not a claim that the
+current browser build has passed them.
 
-- **How it was identified:** S8.1/S8.2 — the only red console error of the whole run; `grep " 404 " /tmp/httpd.log` matched exactly one request.
-- **Expected:** no failing requests.
-- **Actual:** Chrome's implicit favicon request 404'd because the page declared no icon.
-- **Root cause:** no `<link rel="icon">` and no favicon asset.
-- **Fix:** added `assets/img/favicon.svg` and linked it from `index.html`.
-- **Regression test:** headless check asserts the page declares `rel="icon"`; the server log now shows `GET /assets/img/favicon.svg 200` and zero `favicon.ico` requests.
+### F-01 — P1: delayed result overlay could appear after Restart
 
-### BUG-3 (not a bug) — "rapid clicks on several cells fire two shots"
+- Reproduction: fire the match-ending shot, then activate **Restart** during the
+  short delay before the result dialog appears.
+- Expected: the new setup remains visible with no stale result dialog.
+- Previously observed: the completed match's dialog could open over the reset
+  game.
+- Likely cause: a pending result timer survived reset.
+- Regression: test Restart at several points around the final-shot delay and
+  confirm no later overlay, state change, or focus theft.
 
-- **How it was identified:** reported by the UI acceptance run S4.2 (player shots went 1 → 3 after clicking four cells quickly).
-- **Investigation:** a synchronous burst of five `click()`s on distinct enemy cells produced `{"phase":"player-turn","player":1,"ai":1}` — exactly one player shot and one AI reply. The turn guard (`busy` plus `PHASE.AI_TURN`) is set synchronously inside the click handler, so no second shot can slip through.
-- **Conclusion:** the observed extra shot came from real mouse clicks spaced past the 750 ms AI reply — i.e. legal alternating turns, not a rules violation. No code change.
-- **Regression test:** the 500-game suite now also asserts `|playerShots − aiShots| ≤ 1` at every step, which would fail if a player shot ever landed out of turn.
+### F-02 — P1: ship selection was not keyboard-accessible
 
-## 4. Why the game is considered debugged
+- Reproduction: load setup and attempt to select, place, move, and rotate every
+  ship using only <kbd>Tab</kbd>, <kbd>Enter</kbd>/<kbd>Space</kbd>, arrows or
+  documented grid navigation, and <kbd>R</kbd>.
+- Expected: the full setup path is operable with visible focus and announced
+  state.
+- Previously observed: pointer interaction was required to select ships.
+- Likely cause: tray items lacked complete interactive keyboard semantics.
+- Regression: complete deployment and start a match without a pointer.
 
-1. **Every rule R1–R15 has an automated or executed test**, mapped in the tables above.
-2. **The engine is verified exhaustively, not anecdotally**: 500 full games check alternation, shot balance, no repeated AI shots, guaranteed termination, and win-condition consistency; boundary and placement rules are checked in all four directions including negative origins produced by drag anchors.
-3. **Both defects found have been fixed and are covered by regression tests** that fail if the layering or the favicon regresses; the third report was investigated and disproved with a reproducible measurement rather than left open.
-4. **Both end states were exercised end-to-end through the UI** — victory and defeat, including the computer's ships-sunk counter — plus restart, three consecutive playthroughs, and reload mid-battle with no state bleed.
-5. **Robustness cases pass**: duplicate-cell clicks, click bursts, Randomize/Rotate spam, held `R`, Restart mid-AI-turn, and double-clicked Play again.
-6. **The console is clean** across every suite, and all assets return 200.
-7. **The layout holds** from 1280x800 down to 390x844, where a complete game was played.
+### F-03 — P1: 320 px layout overflowed horizontally
 
-Residual risk (known, accepted): no automated DOM/browser test harness runs in CI — UI coverage is manual and the headless suite asserts markup/CSS invariants by static inspection. Audio playback is verified as "no unhandled rejection", not by capturing output. Only Chrome was tested.
+- Reproduction: open at a 320 CSS-pixel viewport and inspect the entire page from
+  top to bottom.
+- Expected: `scrollWidth <= clientWidth`; all controls, boards, profile cards, and
+  dialogs remain reachable.
+- Previously observed: approximately 39 px of horizontal clipping/overflow.
+- Likely cause: narrow-layout minimum widths and padding exceeded the viewport.
+- Regression: measure overflow at 320 px and visually inspect board/replay cell
+  alignment.
+
+### F-04 — P2: enemy cells were focusable during setup
+
+- Reproduction: load a fresh setup and tab through the page before starting.
+- Expected: inactive enemy cells are disabled or removed from sequential focus.
+- Previously observed: they remained enabled/focusable despite having no valid
+  action.
+- Likely cause: visual inactivity was not mirrored in native/ARIA interaction
+  state.
+- Regression: enumerate focus order in setup, player turn, AI turn, and game-over
+  phases.
+
+## Historical Classic-baseline defects
+
+These earlier defects remain useful regression context.
+
+### H-01 — Hit/miss markers and effects painted below ship sprites
+
+- Reproduction before the fix: let the AI hit a player ship and inspect the
+  marker over the sprite.
+- Expected: hit marker and blast/smoke effects appear above the ship.
+- Actual at discovery: markers were visible only on unobstructed water.
+- Root cause: cell pseudo-elements painted below the later sibling ship layer.
+- Implemented protection: dedicated marker layers follow ship layers; the engine
+  suite statically checks layer order and marker selectors.
+
+### H-02 — Missing favicon produced an asset 404
+
+- Reproduction before the fix: load the page with DevTools Network/Console open.
+- Expected: no failed requests.
+- Actual at discovery: the browser requested `/favicon.ico` and received 404.
+- Root cause: no declared icon.
+- Implemented protection: `assets/img/favicon.svg`, a document link, and a static
+  headless invariant. The browser run must still confirm all assets return 200.
+
+### H-03 — Rapid multi-cell clicking was initially suspected to allow two turns
+
+- Observation: real clicks separated by more than the AI response delay could
+  look like a burst registering extra player shots.
+- Investigation result: a synchronous click burst was rejected by the phase/busy
+  guard; spaced clicks represented legal alternating turns.
+- Regression: burst distinct cells faster than the AI delay and assert one player
+  shot, then repeat with controlled spacing and assert legal alternation.
+
+## Failure report format
+
+Every failure must be reported before any corresponding code change:
+
+1. ID and priority (`P0` release blocker through `P3` minor).
+2. Exact numbered reproduction steps, including mode, variant, AI, viewport, and
+   starting storage state.
+3. Expected behaviour.
+4. Actual behaviour.
+5. Supporting evidence: screenshot/video path, console text, network request, DOM
+   state, or repeat count.
+6. Likely root cause, clearly labelled as a hypothesis until confirmed.
+7. A regression test at the lowest useful layer plus a black-box retest.
+
+After fixes, append the command or browser procedure rerun and its actual result;
+do not replace the original failure evidence.
