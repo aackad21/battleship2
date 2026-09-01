@@ -3,63 +3,202 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Battleship</title>
+    <meta
+      name="description"
+      content="Command your fleet in Classic Battleship or a tactical Power mode with ship abilities."
+    />
+    <title>Battleship: Fleet Command</title>
     <link rel="icon" type="image/svg+xml" href="assets/img/favicon.svg" />
     <link rel="stylesheet" href="css/styles.css" />
   </head>
-  <body>
+  <body class="theme-navy effect-classic victory-signal">
+    <a class="skip-link" href="#battlefield">Skip to battlefield</a>
+
     <header class="topbar">
-      <h1 class="logo">Battleship</h1>
-      <div class="topbar-actions">
-        <button id="mute-btn" class="ghost-btn" type="button" aria-pressed="false">Sound: On</button>
+      <div class="brand-lockup">
+        <span class="logo-mark" aria-hidden="true">◆</span>
+        <div>
+          <p class="eyebrow">Fleet Command</p>
+          <h1 class="logo">Battleship</h1>
+        </div>
+      </div>
+      <div class="topbar-actions" aria-label="Game controls">
+        <button id="mute-btn" class="ghost-btn" type="button" aria-pressed="false">
+          Sound: On
+        </button>
         <button id="restart-btn" class="ghost-btn" type="button">Restart</button>
       </div>
     </header>
 
-    <main class="layout">
-      <section class="panel setup-panel" id="setup-panel">
-        <h2>Deploy your fleet</h2>
-        <p class="hint">
-          Drag a ship onto the grid, or select it and click a cell. Press
-          <kbd>R</kbd> or right-click to rotate.
-        </p>
-        <ul class="tray" id="ship-tray"></ul>
-        <div class="setup-actions">
+    <main class="layout" id="battlefield">
+      <section class="panel command-panel" aria-labelledby="command-heading">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Mission setup</p>
+            <h2 id="command-heading">Choose your engagement</h2>
+          </div>
+          <p class="section-note">Mode and rules apply to your next battle.</p>
+        </div>
+
+        <div class="command-grid">
+          <fieldset class="control-group mode-group">
+            <legend>Game mode</legend>
+            <div class="segmented-control">
+              <button
+                id="mode-classic-btn"
+                class="segment is-active"
+                type="button"
+                aria-pressed="true"
+              >
+                <span>Classic</span>
+                <small>Pure fleet tactics</small>
+              </button>
+              <button
+                id="mode-power-btn"
+                class="segment"
+                type="button"
+                aria-pressed="false"
+              >
+                <span>Power</span>
+                <small>Abilities + pickups</small>
+              </button>
+            </div>
+          </fieldset>
+
+          <div class="control-group">
+            <label for="variant-select">Rule variant</label>
+            <select id="variant-select">
+              <option value="standard">Classic rules</option>
+              <option value="salvo">Salvo</option>
+              <option value="rapid">Rapid fire</option>
+              <option value="one-shot">One-shot</option>
+              <option value="compact">Compact 8 × 8</option>
+              <option value="armada">Armada fleet</option>
+              <option value="limited">Limited ammo</option>
+            </select>
+          </div>
+
+          <div class="control-group">
+            <label for="ai-select">Enemy commander</label>
+            <select id="ai-select">
+              <option value="hunter">Hunter · Medium</option>
+              <option value="random">Random · Easy</option>
+              <option value="probability">Probability · Hard</option>
+              <option value="aggressive">Aggressive · Hard</option>
+              <option value="deceptive">Deceptive · Hard</option>
+            </select>
+          </div>
+
+          <div class="control-group daily-control">
+            <span class="control-label">Daily operation</span>
+            <button id="daily-btn" class="daily-btn" type="button">
+              <span aria-hidden="true">◎</span>
+              Deploy daily challenge
+            </button>
+            <p id="daily-status" class="control-status" role="status" aria-live="polite">
+              New board available today
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel setup-panel" id="setup-panel" aria-labelledby="setup-heading">
+        <div class="section-heading compact-heading">
+          <div>
+            <p class="eyebrow">Phase 01</p>
+            <h2 id="setup-heading">Deploy your fleet</h2>
+          </div>
+          <p class="hint">
+            Drag a ship onto the grid, or select it and choose a cell. Press
+            <kbd>R</kbd> or right-click to rotate.
+          </p>
+        </div>
+        <ul class="tray" id="ship-tray" aria-label="Ships awaiting deployment"></ul>
+        <div class="setup-actions" aria-label="Fleet deployment controls">
           <button id="rotate-btn" class="ghost-btn" type="button">Rotate</button>
           <button id="random-btn" class="ghost-btn" type="button">Randomize</button>
           <button id="clear-btn" class="ghost-btn" type="button">Clear</button>
-          <button id="start-btn" class="primary-btn" type="button" disabled>Start battle</button>
+          <button id="start-btn" class="primary-btn" type="button" disabled>
+            Start battle
+          </button>
         </div>
       </section>
 
       <section class="boards">
+        <h2 class="visually-hidden">Battleship boards</h2>
         <div class="board-column">
-          <h2 class="board-title">Your fleet</h2>
+          <div class="board-heading">
+            <p class="board-title">Your fleet</p>
+            <span class="board-tag">Home waters</span>
+          </div>
           <div class="board-wrap" id="player-board-wrap">
             <div class="labels-col" aria-hidden="true"></div>
             <div class="labels-row" aria-hidden="true"></div>
-            <div class="grid" id="player-grid" role="grid" aria-label="Your fleet"></div>
+            <div class="grid" id="player-grid" role="group" aria-label="Your fleet coordinates"></div>
             <div class="ship-layer" id="player-ships"></div>
             <div class="marker-layer" id="player-markers" aria-hidden="true"></div>
           </div>
-          <p class="fleet-status" id="player-fleet-status"></p>
+          <p class="fleet-status" id="player-fleet-status" aria-live="polite"></p>
         </div>
 
         <div class="board-column" id="enemy-column">
-          <h2 class="board-title">Enemy waters</h2>
+          <div class="board-heading">
+            <p class="board-title">Enemy waters</p>
+            <span class="board-tag danger-tag">Weapons free</span>
+          </div>
           <div class="board-wrap" id="enemy-board-wrap">
             <div class="labels-col" aria-hidden="true"></div>
             <div class="labels-row" aria-hidden="true"></div>
-            <div class="grid" id="enemy-grid" role="grid" aria-label="Enemy waters"></div>
+            <div class="grid" id="enemy-grid" role="group" aria-label="Enemy-water coordinates"></div>
             <div class="ship-layer" id="enemy-ships"></div>
             <div class="marker-layer" id="enemy-markers" aria-hidden="true"></div>
           </div>
-          <p class="fleet-status" id="enemy-fleet-status"></p>
+          <p class="fleet-status" id="enemy-fleet-status" aria-live="polite"></p>
         </div>
       </section>
 
-      <section class="panel stats-panel">
-        <p class="turn-banner" id="turn-banner">Place your ships to begin.</p>
+      <section
+        class="panel power-panel hidden"
+        id="power-panel"
+        aria-labelledby="power-heading"
+        aria-hidden="true"
+      >
+        <div class="section-heading compact-heading">
+          <div>
+            <p class="eyebrow">Power mode</p>
+            <h2 id="power-heading">Tactical systems</h2>
+          </div>
+          <p id="power-hint" class="section-note" role="status" aria-live="polite">
+            Abilities unlock when the battle begins.
+          </p>
+        </div>
+        <div class="power-grid">
+          <section class="power-bank" aria-labelledby="abilities-heading">
+            <h3 id="abilities-heading">Ship abilities</h3>
+            <ul id="ability-list" class="action-list" aria-live="polite">
+              <li class="empty-state">Your deployed ships will report here.</li>
+            </ul>
+          </section>
+          <section class="power-bank" aria-labelledby="powerups-heading">
+            <h3 id="powerups-heading">Power-ups</h3>
+            <ul id="powerup-list" class="action-list" aria-live="polite">
+              <li class="empty-state">Earn pickups by landing hits.</li>
+            </ul>
+          </section>
+        </div>
+      </section>
+
+      <section class="panel stats-panel" aria-labelledby="battle-report-heading">
+        <div class="status-strip">
+          <div>
+            <p class="eyebrow">Live command</p>
+            <h2 class="visually-hidden" id="battle-report-heading">Battle report</h2>
+            <p class="turn-banner" id="turn-banner" aria-live="assertive">
+              Place your ships to begin.
+            </p>
+          </div>
+          <span class="signal-dot" aria-hidden="true"></span>
+        </div>
         <div class="stats-grid">
           <div class="stat-block">
             <h3>You</h3>
@@ -80,16 +219,170 @@
             </dl>
           </div>
         </div>
-        <ul class="log" id="log" aria-live="polite"></ul>
+        <div class="log-wrap">
+          <p class="log-label">Combat log</p>
+          <ul class="log" id="log" aria-live="polite"></ul>
+        </div>
+      </section>
+
+      <section class="panel dashboard-panel" aria-labelledby="records-heading">
+        <div class="section-heading dashboard-heading">
+          <div>
+            <p class="eyebrow">Captain profile</p>
+            <h2 id="records-heading">Admiralty records</h2>
+          </div>
+          <button
+            id="replay-btn"
+            class="ghost-btn replay-open-btn"
+            type="button"
+            disabled
+            aria-describedby="replay-help"
+          >
+            Review last match
+          </button>
+          <span class="visually-hidden" id="replay-help">
+            Available after a match is complete.
+          </span>
+        </div>
+
+        <div class="dashboard-grid">
+          <section class="record-card career-card" aria-labelledby="career-heading">
+            <h3 id="career-heading">Career</h3>
+            <dl id="career-stats" class="career-stats">
+              <div><dt>Matches</dt><dd>0</dd></div>
+              <div><dt>Wins</dt><dd>0</dd></div>
+              <div><dt>Best accuracy</dt><dd>—</dd></div>
+              <div><dt>Win streak</dt><dd>0</dd></div>
+            </dl>
+          </section>
+
+          <section class="record-card" aria-labelledby="history-heading">
+            <h3 id="history-heading">Match history</h3>
+            <ol id="match-history" class="record-list" aria-live="polite">
+              <li class="empty-state">Completed battles will appear here.</li>
+            </ol>
+          </section>
+
+          <section class="record-card" aria-labelledby="achievements-heading">
+            <h3 id="achievements-heading">Achievements</h3>
+            <ul id="achievements" class="achievement-list" aria-live="polite">
+              <li class="achievement locked">
+                <span class="achievement-icon" aria-hidden="true">◇</span>
+                <span><strong>First command</strong><small>Win your first battle</small></span>
+              </li>
+              <li class="achievement locked">
+                <span class="achievement-icon" aria-hidden="true">◇</span>
+                <span><strong>Perfect salvo</strong><small>Sink a ship without missing</small></span>
+              </li>
+            </ul>
+          </section>
+
+          <section class="record-card custom-card" aria-labelledby="custom-heading">
+            <h3 id="custom-heading">Fleet customization</h3>
+            <p class="record-copy">Cosmetic choices are saved on this device.</p>
+            <div class="customization-grid">
+              <label>
+                <span>Ocean theme</span>
+                <select id="theme-select">
+                  <option value="navy">Midnight Navy</option>
+                  <option value="arctic">Arctic Watch</option>
+                  <option value="sunset">Sunset Patrol</option>
+                </select>
+              </label>
+              <label>
+                <span>Hit effect</span>
+                <select id="effect-select">
+                  <option value="classic">Classic blast</option>
+                  <option value="impact">Heavy impact</option>
+                  <option value="minimal">Minimal signal</option>
+                </select>
+              </label>
+              <label>
+                <span>Fleet flag</span>
+                <select id="flag-select">
+                  <option value="ensign">Command ensign</option>
+                  <option value="anchor">Anchor standard</option>
+                  <option value="skull">Black flag</option>
+                  <option value="none">No flag</option>
+                </select>
+              </label>
+              <label>
+                <span>Victory signal</span>
+                <select id="victory-select">
+                  <option value="signal">Signal flare</option>
+                  <option value="fireworks">Fireworks</option>
+                  <option value="fleet">Fleet salute</option>
+                </select>
+              </label>
+            </div>
+          </section>
+        </div>
       </section>
     </main>
 
-    <div class="overlay hidden" id="overlay">
-      <div class="overlay-card">
+    <div
+      class="overlay hidden"
+      id="overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="overlay-title"
+      aria-hidden="true"
+    >
+      <div class="overlay-card result-card">
+        <p class="eyebrow">Battle complete</p>
         <h2 id="overlay-title">Victory</h2>
         <p id="overlay-subtitle"></p>
         <dl class="overlay-stats" id="overlay-stats"></dl>
         <button id="play-again-btn" class="primary-btn" type="button">Play again</button>
+      </div>
+    </div>
+
+    <div
+      class="overlay replay-overlay hidden"
+      id="replay-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="replay-title"
+      aria-hidden="true"
+    >
+      <div class="overlay-card replay-card">
+        <div class="replay-header">
+          <div>
+            <p class="eyebrow">Tactical replay</p>
+            <h2 id="replay-title">Last battle</h2>
+          </div>
+          <button id="replay-close-btn" class="icon-btn" type="button" aria-label="Close replay">
+            <span aria-hidden="true">×</span>
+          </button>
+        </div>
+
+        <p id="replay-frame-label" class="replay-frame-label" aria-live="polite">
+          Opening positions
+        </p>
+        <div class="replay-boards" aria-label="Replay boards">
+          <section class="replay-board-panel" aria-labelledby="replay-player-heading">
+            <h3 id="replay-player-heading">Your fleet</h3>
+            <div
+              id="replay-grid-player"
+              class="replay-grid"
+              role="img"
+              aria-label="Your fleet replay board"
+            ></div>
+          </section>
+          <section class="replay-board-panel" aria-labelledby="replay-enemy-heading">
+            <h3 id="replay-enemy-heading">Enemy waters</h3>
+            <div
+              id="replay-grid-enemy"
+              class="replay-grid"
+              role="img"
+              aria-label="Enemy-waters replay board"
+            ></div>
+          </section>
+        </div>
+        <div class="replay-controls">
+          <button id="replay-prev-btn" class="ghost-btn" type="button">Previous turn</button>
+          <button id="replay-next-btn" class="primary-btn" type="button">Next turn</button>
+        </div>
       </div>
     </div>
 
