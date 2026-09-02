@@ -651,9 +651,12 @@ function renderingLayers() {
       /\.grid\.deploying\s*\{[^}]*touch-action:\s*none/s.test(css)
   );
   check(
-    'the post-drop click guard expires so click-to-place survives a drag',
+    'the post-drop click guard is one-shot and cell-scoped so click-to-place survives a drag',
     /CLICK_AFTER_DROP_MS = \d+/.test(main) &&
-      /performance\.now\(\) - placement\.dropAt < CLICK_AFTER_DROP_MS/.test(main) &&
+      /cell === placement\.dropCell && performance\.now\(\) - placement\.dropAt < CLICK_AFTER_DROP_MS/.test(
+        main
+      ) &&
+      /function isDropEcho[\s\S]{0,320}placement\.dropCell = null;\n\s*return echo;/.test(main) &&
       !/placement\.suppressClick/.test(main)
   );
   check(

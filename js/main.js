@@ -123,6 +123,7 @@ const placement = {
   pointer: { x: 0, y: 0 },
   ghost: null,
   dropAt: 0,
+  dropCell: null,
 };
 
 const profileStore = new ProfileStore();
@@ -556,10 +557,19 @@ function endDrag({ cancelled = false } = {}) {
   const cell = cancelled ? null : cellFromPoint(x, y);
   if (cell) {
     placement.dropAt = performance.now();
+    placement.dropCell = cell;
     tryPlace(Number(cell.dataset.row), Number(cell.dataset.col));
     return;
   }
   refreshSetup();
+}
+
+function isDropEcho(cell) {
+  const echo =
+    cell === placement.dropCell && performance.now() - placement.dropAt < CLICK_AFTER_DROP_MS;
+  placement.dropAt = 0;
+  placement.dropCell = null;
+  return echo;
 }
 
 function grabbedSegment(event, sprite, ship) {
@@ -1238,6 +1248,7 @@ function newGame({ announce = false } = {}) {
   placement.carrying = false;
   placement.pointerId = null;
   placement.dropAt = 0;
+  placement.dropCell = null;
   placement.ghost?.remove();
   placement.ghost = null;
   document.body.classList.remove('dragging-ship');
@@ -1472,10 +1483,10 @@ function wirePlayerBoard() {
   });
   dom.playerGrid.addEventListener('mouseleave', clearPreview);
   dom.playerGrid.addEventListener('click', (event) => {
-    if (performance.now() - placement.dropAt < CLICK_AFTER_DROP_MS) return;
     if (game.phase !== PHASE.SETUP) return;
     const cell = event.target.closest('.cell');
     if (!cell) return;
+    if (isDropEcho(cell)) return;
     tryPlace(Number(cell.dataset.row), Number(cell.dataset.col));
     clearPreview();
   });
