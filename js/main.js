@@ -112,6 +112,8 @@ const settings = {
   daily: false,
 };
 
+const CLICK_AFTER_DROP_MS = 250;
+
 const placement = {
   selectedShipId: null,
   orientation: HORIZONTAL,
@@ -120,7 +122,7 @@ const placement = {
   pointerId: null,
   pointer: { x: 0, y: 0 },
   ghost: null,
-  suppressClick: false,
+  dropAt: 0,
 };
 
 const profileStore = new ProfileStore();
@@ -553,7 +555,7 @@ function endDrag({ cancelled = false } = {}) {
   clearPreview();
   const cell = cancelled ? null : cellFromPoint(x, y);
   if (cell) {
-    placement.suppressClick = true;
+    placement.dropAt = performance.now();
     tryPlace(Number(cell.dataset.row), Number(cell.dataset.col));
     return;
   }
@@ -1235,7 +1237,7 @@ function newGame({ announce = false } = {}) {
   placement.anchorIndex = 0;
   placement.carrying = false;
   placement.pointerId = null;
-  placement.suppressClick = false;
+  placement.dropAt = 0;
   placement.ghost?.remove();
   placement.ghost = null;
   document.body.classList.remove('dragging-ship');
@@ -1470,10 +1472,7 @@ function wirePlayerBoard() {
   });
   dom.playerGrid.addEventListener('mouseleave', clearPreview);
   dom.playerGrid.addEventListener('click', (event) => {
-    if (placement.suppressClick) {
-      placement.suppressClick = false;
-      return;
-    }
+    if (performance.now() - placement.dropAt < CLICK_AFTER_DROP_MS) return;
     if (game.phase !== PHASE.SETUP) return;
     const cell = event.target.closest('.cell');
     if (!cell) return;

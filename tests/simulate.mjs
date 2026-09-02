@@ -651,6 +651,12 @@ function renderingLayers() {
       /\.grid\.deploying\s*\{[^}]*touch-action:\s*none/s.test(css)
   );
   check(
+    'the post-drop click guard expires so click-to-place survives a drag',
+    /CLICK_AFTER_DROP_MS = \d+/.test(main) &&
+      /performance\.now\(\) - placement\.dropAt < CLICK_AFTER_DROP_MS/.test(main) &&
+      !/placement\.suppressClick/.test(main)
+  );
+  check(
     'the setup hint describes dragging as a real drag',
     /Drag a ship from the tray or the grid/.test(html) && /<kbd>Esc<\/kbd>/.test(html)
   );
