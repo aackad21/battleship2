@@ -36,6 +36,17 @@ const board = new Board();
 board.place(FLEET[4], 0, 0, HORIZONTAL);
 const scan = scanResult(board, 'sonar', 0, 0);
 check('scan reports unhit occupied sections', scan.contacts === 2);
+check(
+  'unclipped scans label their nominal span',
+  scanResult(board, 'sonar', 5, 5).label === '3×3 sector' &&
+    scanResult(board, 'cruiser-radar', 5, 5).label === '5×5 sector'
+);
+check(
+  'clipped scans label the area actually scanned',
+  scanResult(board, 'sonar', 0, 0).label === '4-cell sector' &&
+    scanResult(board, 'cruiser-radar', 0, 0).label === '9-cell sector' &&
+    scanResult(board, 'cruiser-radar', 9, 9).label === '9-cell sector'
+);
 board.receiveShot(0, 0);
 check('scan excludes hit sections', scanResult(board, 'sonar', 0, 0).contacts === 1);
 const repaired = repairOne(board);
