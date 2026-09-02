@@ -19,8 +19,12 @@ python3 -m http.server 8000
 - Deploy the Carrier (5), Battleship (4), Cruiser (3), Submarine (3), and
   Destroyer (2) horizontally or vertically. Ships may touch, but cannot overlap
   or leave the board.
-- Drag a ship, or select it and choose a cell. Press <kbd>R</kbd>, right-click, or
-  use **Rotate** to change orientation. **Randomize** places the complete fleet.
+- Drag a ship from the tray or reposition one already on the grid: the hull
+  follows the pointer or finger, keeps the section you grabbed under it, and
+  tints red over an illegal drop. Release to place, or press <kbd>Esc</kbd> to
+  abandon the drag. Selecting a ship and clicking a cell also works.
+- Press <kbd>R</kbd>, right-click, or use **Rotate** to change orientation, which
+  also turns a ship mid-drag. **Randomize** places the complete fleet.
 - Battle starts only after the required fleet is deployed. Enemy ships remain
   hidden until sunk or the match ends.
 - A normal turn permits the number of shots set by the chosen variant. A cell
