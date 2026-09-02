@@ -630,6 +630,30 @@ function renderingLayers() {
     'history replay control retains a 44px touch target',
     /\.history-replay\s*\{[^}]*min-height:\s*44px/s.test(css)
   );
+  check(
+    'deployment drag is pointer-driven so touch and pen can drag too',
+    main.includes("dom.tray.addEventListener('pointerdown'") &&
+      main.includes("dom.playerShips.addEventListener('pointerdown'") &&
+      main.includes("document.addEventListener('pointermove'") &&
+      main.includes("document.addEventListener('pointercancel'") &&
+      !main.includes("dom.tray.addEventListener('mousedown'")
+  );
+  check(
+    'a ghost hull follows the pointer and marks illegal drops',
+    /function moveGhost/.test(main) &&
+      /classList\.toggle\('invalid'/.test(main) &&
+      /\.drag-ghost\s*\{[^}]*position:\s*fixed/s.test(css) &&
+      /\.drag-ghost\s*\{[^}]*pointer-events:\s*none/s.test(css)
+  );
+  check(
+    'draggable surfaces opt out of touch scrolling so a drag is not stolen',
+    /\.tray-item\s*\{[^}]*touch-action:\s*none/s.test(css) &&
+      /\.grid\.deploying\s*\{[^}]*touch-action:\s*none/s.test(css)
+  );
+  check(
+    'the setup hint describes dragging as a real drag',
+    /Drag a ship from the tray or the grid/.test(html) && /<kbd>Esc<\/kbd>/.test(html)
+  );
   const airstrikeAction = main.indexOf("const actionEvent = recordAbility('powerup-airstrike'");
   const airstrikeExecution = main.indexOf('const outcomes = executeAirstrike', airstrikeAction);
   check(

@@ -117,6 +117,10 @@ const placement = {
   orientation: HORIZONTAL,
   anchorIndex: 0,
   carrying: false,
+  pointerId: null,
+  pointer: { x: 0, y: 0 },
+  ghost: null,
+  suppressClick: false,
 };
 
 const profileStore = new ProfileStore();
@@ -444,6 +448,12 @@ function tryPlace(row, col) {
 
 function rotateSelected() {
   if (game.phase !== PHASE.SETUP) return;
+  if (placement.carrying) {
+    placement.orientation = placement.orientation === HORIZONTAL ? VERTICAL : HORIZONTAL;
+    buildGhost();
+    updateDrag(placement.pointer.x, placement.pointer.y);
+    return;
+  }
   const definition = shipDef(placement.selectedShipId);
   const placed = game.playerBoard.ships.find((ship) => ship.id === placement.selectedShipId);
   const orientation = placement.orientation === HORIZONTAL ? VERTICAL : HORIZONTAL;
@@ -452,6 +462,101 @@ function rotateSelected() {
     return;
   }
   placement.orientation = orientation;
+  refreshSetup();
+}
+
+function cellSizePx() {
+  return dom.playerGrid.getBoundingClientRect().width / game.boardSize;
+}
+
+function cellFromPoint(x, y) {
+  const cell = document.elementFromPoint(x, y)?.closest?.('.cell');
+  return cell && dom.playerGrid.contains(cell) ? cell : null;
+}
+
+function buildGhost() {
+  const definition = shipDef(placement.selectedShipId);
+  if (!definition) return;
+  placement.ghost?.remove();
+  const unit = cellSizePx();
+  const ghost = document.createElement('div');
+  ghost.className = 'drag-ghost';
+  ghost.classList.toggle('vertical', placement.orientation === VERTICAL);
+  ghost.style.width = `${definition.size * unit}px`;
+  ghost.style.height = `${unit}px`;
+  const image = document.createElement('img');
+  image.src = `assets/img/${definition.assetId ?? definition.id}.svg`;
+  image.alt = '';
+  ghost.appendChild(image);
+  document.body.appendChild(ghost);
+  placement.ghost = ghost;
+}
+
+function moveGhost(x, y) {
+  const definition = shipDef(placement.selectedShipId);
+  if (!placement.ghost || !definition) return;
+  const unit = cellSizePx();
+  const along = (definition.size / 2 - (placement.anchorIndex + 0.5)) * unit;
+  const centerX = x + (placement.orientation === HORIZONTAL ? along : 0);
+  const centerY = y + (placement.orientation === HORIZONTAL ? 0 : along);
+  placement.ghost.style.left = `${centerX - (definition.size * unit) / 2}px`;
+  placement.ghost.style.top = `${centerY - unit / 2}px`;
+}
+
+function updateDrag(x, y) {
+  placement.pointer = { x, y };
+  moveGhost(x, y);
+  const cell = cellFromPoint(x, y);
+  if (!cell) {
+    clearPreview();
+    placement.ghost?.classList.remove('invalid');
+    return;
+  }
+  const row = Number(cell.dataset.row);
+  const col = Number(cell.dataset.col);
+  showPreview(row, col);
+  const definition = shipDef(placement.selectedShipId);
+  const origin = anchoredOrigin(row, col, placement.orientation, placement.anchorIndex);
+  const valid = Boolean(definition) && game.playerBoard.canPlace(
+    origin.row,
+    origin.col,
+    definition.size,
+    placement.orientation,
+    definition.id
+  );
+  placement.ghost?.classList.toggle('invalid', !valid);
+}
+
+function startDrag(event, shipId, anchorIndex) {
+  if (game.phase !== PHASE.SETUP || !shipDef(shipId)) return;
+  placement.selectedShipId = shipId;
+  placement.anchorIndex = anchorIndex;
+  placement.carrying = true;
+  placement.pointerId = event.pointerId ?? null;
+  buildGhost();
+  document.body.classList.add('dragging-ship');
+  renderTray();
+  dom.playerShips
+    .querySelector(`.ship-sprite[data-ship-id="${shipId}"]`)
+    ?.classList.add('lifted');
+  updateDrag(event.clientX, event.clientY);
+}
+
+function endDrag({ cancelled = false } = {}) {
+  if (!placement.carrying) return;
+  const { x, y } = placement.pointer;
+  placement.carrying = false;
+  placement.pointerId = null;
+  placement.ghost?.remove();
+  placement.ghost = null;
+  document.body.classList.remove('dragging-ship');
+  clearPreview();
+  const cell = cancelled ? null : cellFromPoint(x, y);
+  if (cell) {
+    placement.suppressClick = true;
+    tryPlace(Number(cell.dataset.row), Number(cell.dataset.col));
+    return;
+  }
   refreshSetup();
 }
 
@@ -534,6 +639,7 @@ function selectedAction() {
 
 function updateInteractiveState() {
   const setup = game.phase === PHASE.SETUP;
+  dom.playerGrid.classList.toggle('deploying', setup);
   Array.from(dom.playerGrid.children).forEach((cell) => {
     cell.disabled = !setup;
     cell.tabIndex = setup ? 0 : -1;
@@ -1128,6 +1234,11 @@ function newGame({ announce = false } = {}) {
   placement.orientation = HORIZONTAL;
   placement.anchorIndex = 0;
   placement.carrying = false;
+  placement.pointerId = null;
+  placement.suppressClick = false;
+  placement.ghost?.remove();
+  placement.ghost = null;
+  document.body.classList.remove('dragging-ship');
   busy = false;
   matchRecorded = false;
   nextHitReward = 3;
@@ -1338,13 +1449,11 @@ function wireTray() {
     placement.anchorIndex = 0;
     renderTray();
   });
-  dom.tray.addEventListener('mousedown', (event) => {
+  dom.tray.addEventListener('pointerdown', (event) => {
     const item = event.target.closest('.tray-item');
-    if (!item || event.button !== 0 || game.phase !== PHASE.SETUP) return;
-    placement.selectedShipId = item.dataset.shipId;
-    placement.anchorIndex = 0;
-    placement.carrying = true;
-    renderTray();
+    if (!item || !event.isPrimary || event.button !== 0 || game.phase !== PHASE.SETUP) return;
+    event.preventDefault();
+    startDrag(event, item.dataset.shipId, 0);
   });
   dom.tray.addEventListener('contextmenu', (event) => {
     if (!event.target.closest('.tray-item')) return;
@@ -1355,12 +1464,16 @@ function wireTray() {
 
 function wirePlayerBoard() {
   dom.playerGrid.addEventListener('mousemove', (event) => {
-    if (game.phase !== PHASE.SETUP) return;
+    if (game.phase !== PHASE.SETUP || placement.carrying) return;
     const cell = event.target.closest('.cell');
     if (cell) showPreview(Number(cell.dataset.row), Number(cell.dataset.col));
   });
   dom.playerGrid.addEventListener('mouseleave', clearPreview);
   dom.playerGrid.addEventListener('click', (event) => {
+    if (placement.suppressClick) {
+      placement.suppressClick = false;
+      return;
+    }
     if (game.phase !== PHASE.SETUP) return;
     const cell = event.target.closest('.cell');
     if (!cell) return;
@@ -1374,25 +1487,28 @@ function wirePlayerBoard() {
     const cell = event.target.closest('.cell');
     if (cell) showPreview(Number(cell.dataset.row), Number(cell.dataset.col));
   });
-  dom.playerShips.addEventListener('mousedown', (event) => {
+  dom.playerShips.addEventListener('pointerdown', (event) => {
     const sprite = event.target.closest('.ship-sprite');
-    if (!sprite || event.button !== 0 || game.phase !== PHASE.SETUP) return;
+    if (!sprite || !event.isPrimary || event.button !== 0 || game.phase !== PHASE.SETUP) return;
     const ship = game.playerBoard.ships.find((entry) => entry.id === sprite.dataset.shipId);
     if (!ship) return;
     event.preventDefault();
-    placement.selectedShipId = ship.id;
     placement.orientation = ship.orientation;
-    placement.anchorIndex = grabbedSegment(event, sprite, ship);
-    placement.carrying = true;
-    renderTray();
+    startDrag(event, ship.id, grabbedSegment(event, sprite, ship));
   });
-  document.addEventListener('mouseup', (event) => {
-    if (!placement.carrying) return;
-    placement.carrying = false;
-    const cell = event.target.closest?.('.cell');
-    clearPreview();
-    if (!cell || !dom.playerGrid.contains(cell)) return;
-    tryPlace(Number(cell.dataset.row), Number(cell.dataset.col));
+  document.addEventListener('pointermove', (event) => {
+    if (!placement.carrying || event.pointerId !== placement.pointerId) return;
+    event.preventDefault();
+    updateDrag(event.clientX, event.clientY);
+  });
+  document.addEventListener('pointerup', (event) => {
+    if (!placement.carrying || event.pointerId !== placement.pointerId) return;
+    updateDrag(event.clientX, event.clientY);
+    endDrag();
+  });
+  document.addEventListener('pointercancel', (event) => {
+    if (!placement.carrying || event.pointerId !== placement.pointerId) return;
+    endDrag({ cancelled: true });
   });
 }
 
@@ -1488,7 +1604,8 @@ function wireControls() {
       rotateSelected();
     }
     if (event.key === 'Escape') {
-      if (!dom.replayOverlay.classList.contains('hidden')) closeReplay();
+      if (placement.carrying) endDrag({ cancelled: true });
+      else if (!dom.replayOverlay.classList.contains('hidden')) closeReplay();
       else if (powerState.selected) {
         powerState.clearSelection();
         renderPowers();
