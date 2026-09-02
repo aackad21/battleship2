@@ -127,6 +127,50 @@ current browser build has passed them.
 - Regression: enumerate focus order in setup, player turn, AI turn, and game-over
   phases.
 
+## Power-mode browser acceptance run (2026-09-02)
+
+Executed against `99ca797` on Chrome at 1280×800 with a 390×844 spot check, local
+storage starting empty, serving the repository with `python3 -m http.server 8000`.
+All actions were driven through the UI; `window.battleship.game` and
+`window.battleship.powerState` were read only as a ground-truth oracle.
+
+Passed: all five ship abilities (arming, single-charge consumption, report
+accuracy against the fleet, and Salvo holding the turn across its extra shots);
+ability gating once the owning ship sinks; the power-up earn rule
+(`floor(hits / 3) + shipsSunk`, including a shot that both landed the third hit
+and sank a ship and correctly granted two awards); the full award cycle through a
+wrap; every power-up effect, including Airstrike clipping to three sectors at a
+corner and four at an edge, Repair preferring a damaged unsunk ship over a more
+damaged sunk one, Decoy converting the next enemy hit to a miss, and Stealth
+expiring after exactly two enemy turns; Restart while an ability was armed and a
+Salvo volley half-spent; Play again after victory; three consecutive matches
+without state bleed; a clean console; no asset 404s; and no horizontal overflow at
+390 px.
+
+### P-01 — P3: clipped scans reported the nominal sector size
+
+- Reproduction: Power mode, Classic rules, any commander. Randomize, start the
+  battle, arm **Cruiser Radar**, and select a corner cell such as A1 or J10.
+- Expected: the log describes the area actually scanned, since a corner scan can
+  only cover nine cells.
+- Actual at discovery: the log read `3 unhit contacts in 5×5 sector` while only
+  the nine-cell corner block highlighted. **Destroyer Sonar** reported
+  `3×3 sector` for a four-cell corner scan. Contact counts were correct in every
+  case, verified at 7/25 (F6), 3/9 (J10), 0/9 (A1), and 0/4 (Sonar at A1).
+- Root cause: `scanResult` derived the label from the radius after `cellsInArea`
+  had already clipped the cell list, so the label could never reflect clipping.
+- Implemented fix: the label keeps its nominal span only when the scan covers the
+  full square, and otherwise reports the scanned cell count.
+- Regression: `tests/powers.mjs` asserts the nominal label for interior scans and
+  the clipped label for corner scans of both radii.
+
+Carrier Recon (`row N`) and the Radar Scan power-up (`in the sector`) make no size
+claim and were unaffected.
+
+Not covered by this run: the six non-Classic rule variants, the commanders other
+than Random, Hunter, and Aggressive, the Daily challenge, replays, and profile
+persistence.
+
 ## Historical Classic-baseline defects
 
 These earlier defects remain useful regression context.

@@ -240,10 +240,11 @@ export function scanResult(board, action, row, col) {
   }
   const radius = action === 'cruiser-radar' ? 2 : 1;
   const cells = cellsInArea(row, col, radius, board.size);
+  const span = radius * 2 + 1;
   return {
     cells,
     contacts: contactCount(board, cells),
-    label: `${radius * 2 + 1}×${radius * 2 + 1} sector`,
+    label: cells.length === span * span ? `${span}×${span} sector` : `${cells.length}-cell sector`,
   };
 }
 
