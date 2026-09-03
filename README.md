@@ -152,6 +152,12 @@ browser acceptance testing.
   design and rules notes.
 - [CHANGELOG.md](CHANGELOG.md) — released versions and their changes.
 - [CREDITS.md](CREDITS.md) — sound and art attribution.
+- [CONTRIBUTING.md](CONTRIBUTING.md) — setup, expectations, and the checks a
+  pull request must pass.
+- [SECURITY.md](SECURITY.md) — how to report a vulnerability privately, and
+  what is in scope.
+- [SUPPORT.md](SUPPORT.md) — where to ask questions.
+- [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) — Contributor Covenant 2.1.
 
 ## Project layout
 

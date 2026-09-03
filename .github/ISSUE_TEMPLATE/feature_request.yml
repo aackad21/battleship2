@@ -1,0 +1,44 @@
+name: Feature request
+description: Suggest a rule, mode, or interface change
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What is missing today
+      description: The gap or frustration this would address.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: How it should work, including how the player triggers it.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Rules or variants
+        - AI commanders
+        - Abilities and power-ups
+        - Deployment and controls
+        - Interface, layout, or accessibility
+        - Profile, statistics, or replays
+        - Audio or art
+        - Documentation
+    validations:
+      required: true
+  - type: checkboxes
+    id: constraints
+    attributes:
+      label: Constraints
+      options:
+        - label: This can be built with no runtime dependency and no build step
+          required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered

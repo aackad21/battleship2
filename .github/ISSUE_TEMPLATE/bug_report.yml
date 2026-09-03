@@ -1,0 +1,70 @@
+name: Bug report
+description: Something in the game behaves incorrectly
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please do not report security problems here — follow
+        [SECURITY.md](https://github.com/aackad21/battleship2/blob/master/SECURITY.md).
+  - type: input
+    id: where
+    attributes:
+      label: Where did it happen
+      description: The deployed URL, or a local commit SHA.
+      placeholder: https://battleship2-xne9.vercel.app/
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Game mode
+      options:
+        - Classic
+        - Power
+        - Daily challenge
+        - Not applicable
+    validations:
+      required: true
+  - type: input
+    id: setup
+    attributes:
+      label: Rule variant and AI commander
+      description: Leave blank if the defaults were used.
+      placeholder: Salvo, Hunter
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Numbered steps, starting from a fresh page load.
+      placeholder: |
+        1. Load the page
+        2. Randomize the fleet, then Start battle
+        3. Fire at E5
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected versus actual
+      description: What you expected to happen, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: console
+    attributes:
+      label: Browser console output
+      description: Any errors or warnings, or "none".
+      render: text
+  - type: input
+    id: env
+    attributes:
+      label: Browser, OS, and viewport
+      placeholder: Chrome 128, macOS 15, 1280x800
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Screenshot or recording
+      description: Attach evidence if the problem is visual.
