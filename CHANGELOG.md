@@ -20,6 +20,9 @@ Defect IDs (P-01, D-01, H-01..H-03, F-01..F-04) refer to the defect register in
 
 - CI now triggers only on `master`; the legacy `devin/1788265893-testing-fixes`
   branch has been deleted.
+- `docs/repository-settings.md` now records the settings as they are configured
+  rather than as recommendations to apply.
+- `TESTING.md` records the release readiness run against the deployed build.
 
 ## [1.0.0] - 2026-09-03
 
