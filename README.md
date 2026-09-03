@@ -150,6 +150,7 @@ browser acceptance testing.
   black-box test plan.
 - [Project wiki](https://github.com/aackad21/battleship2/wiki) — longer-form
   design and rules notes.
+- [CHANGELOG.md](CHANGELOG.md) — released versions and their changes.
 - [CREDITS.md](CREDITS.md) — sound and art attribution.
 
 ## Project layout

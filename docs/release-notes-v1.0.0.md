@@ -3,12 +3,11 @@
 Release notes for tag `v1.0.0`. Copy the body below into the GitHub Release.
 
 - Tag: `v1.0.0`
-- Target branch: `devin/1788265893-testing-fixes` (the default branch; `master`
-  is fast-forwarded to the same commit)
+- Target branch: `master` (the default branch;
+  `devin/1788265893-testing-fixes` is a legacy alias kept at the same commit)
 - Title: `Battleship: Fleet Command v1.0.0`
-- Notes based on: `318200e` (merge of #6, 2026-09-03). Tag the default branch
-  only after the CI workflow, license, and README pull requests have merged, so
-  the tag includes them.
+- Notes based on: `f932d8b`, which includes the CI workflow, the MIT license,
+  the rewritten README, the changelog, and the settings documentation.
 
 ---
 
@@ -51,5 +50,5 @@ All defects in the register are closed. IDs refer to `TESTING.md`.
 ## Links
 
 - Production deployment: https://battleship2-xne9.vercel.app/
-- Debug report and defect register: https://github.com/aackad21/battleship2/blob/devin/1788265893-testing-fixes/TESTING.md
-- Changelog: https://github.com/aackad21/battleship2/blob/devin/1788265893-testing-fixes/CHANGELOG.md
+- Debug report and defect register: https://github.com/aackad21/battleship2/blob/master/TESTING.md
+- Changelog: https://github.com/aackad21/battleship2/blob/master/CHANGELOG.md

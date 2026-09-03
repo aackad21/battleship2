@@ -49,6 +49,10 @@ Do these together:
 2. Vercel: Project → Settings → Git → **Production Branch** → set to `master`
    → Save. Trigger a deployment (push to `master` or "Redeploy" in the Vercel
    dashboard) and confirm https://battleship2-xne9.vercel.app/ serves it.
+   Two Vercel projects are wired to this repository, `battleship2-xne9` and
+   `battleship2` (served at `battleship2-gray.vercel.app`), and both currently
+   deploy the same build. Set the Production Branch on whichever is kept and
+   delete the other, so a single URL is authoritative.
 3. GitHub: Settings → General → Default branch → switch to `master` (if not
    already `master`). Equivalent:
    `gh api --method PATCH repos/aackad21/battleship2 -f default_branch=master`
@@ -235,9 +239,13 @@ Once `master` is the default branch and is protected as above, expect:
 | Wiki          | enabled                                   |
 | Issues        | enabled                                   |
 
-The current homepage points at an older Vercel deployment. The production
-deployment that tracks the default branch is
-`https://battleship2-xne9.vercel.app/`.
+The homepage points at `battleship2-gray.vercel.app`, which belongs to the
+second Vercel project wired to this repository. Both it and
+`battleship2-xne9.vercel.app` currently serve the same build, so neither is
+stale, but the repository, the README, and the wiki should all name one
+canonical URL. `https://battleship2-xne9.vercel.app/` is the one used
+everywhere else, so the homepage should be changed to match and the duplicate
+project retired.
 
 ### Recommended values
 
