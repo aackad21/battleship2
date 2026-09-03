@@ -171,6 +171,51 @@ Not covered by this run: the six non-Classic rule variants, the commanders other
 than Random, Hunter, and Aggressive, the Daily challenge, replays, and profile
 persistence.
 
+## Drag deployment browser acceptance run (2026-09-02)
+
+Executed against `3d732b4` on Chrome at 1280×800 and 390×844, serving the
+repository with `python3 -m http.server 8000`. Every drag was a genuinely held
+pointer drag — press, several moves, an observation while still held, then
+release — because a synthesized click cannot exercise pointer dragging.
+`window.battleship` was read only as a ground-truth oracle.
+
+Passed: the carried hull tracking the pointer with a valid preview at both
+viewports; an illegal destination tinting the hull and refusing the drop; an
+off-board release and an `Escape` cancellation both leaving the fleet untouched;
+repositioning keeping the grabbed section under the pointer (grabbing the
+Carrier's third section and releasing on C2 produced A2–E2); rotating mid-drag
+flipping the hull and the preview; exactly one ship placed per drop with no stray
+sprite or stale preview; Restart while a drag was held clearing all drag state;
+Randomize and the **Start battle** gate; a Power-mode smoke test including
+Cruiser Radar and the Radar Scan power-up matching the oracle; a clean console;
+and no asset 404s.
+
+### D-01 — P2: the first board click after a drop was discarded
+
+- Reproduction before the fix: with a cleared board, drag the Carrier from the
+  tray onto the board and release. The Battleship becomes selected. Click once on
+  a legal empty cell.
+- Expected: the click places the selected ship, since click-to-place remains a
+  supported path.
+- Actual at discovery: nothing happened and a second click was required. The
+  oracle read `{"ships":1,"battleshipPlaced":false}` after the first click. A
+  capture-phase listener confirmed the event reached a valid cell, so the app
+  discarded it. Reproduced at 390×844 as well.
+- Root cause: `endDrag` latched a boolean expecting the compatibility `click`
+  that follows `pointerup`, but the pointer handlers call `preventDefault()`, so
+  that click never arrives. The flag was never consumed and swallowed the next
+  genuine click.
+- Implemented fix: the guard records the drop time and the dropped-on cell, and
+  the click handler discards a click only when it lands on that same cell inside
+  `CLICK_AFTER_DROP_MS`, consuming the guard on first use.
+- Regression: `tests/simulate.mjs` asserts the guard is cell-scoped, one-shot, and
+  that the latching boolean is gone. Since that assertion is a source check, the
+  acceptance gate also requires drag-then-single-click in the browser.
+
+Not covered by this run: right-click rotation mid-drag (the `R` key was used
+instead), desktop rows 7–10, which sat below the fold, and every non-placement
+feature beyond the Power smoke test.
+
 ## Historical Classic-baseline defects
 
 These earlier defects remain useful regression context.
