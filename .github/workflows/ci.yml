@@ -3,11 +3,9 @@ name: CI
 on:
   push:
     branches:
-      - devin/1788265893-testing-fixes
       - master
   pull_request:
     branches:
-      - devin/1788265893-testing-fixes
       - master
   workflow_dispatch:
 

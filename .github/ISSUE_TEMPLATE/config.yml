@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Play the game
+    url: https://battleship2-xne9.vercel.app/
+    about: Try the deployed build before filing an issue.
+  - name: Rules, design, and testing notes
+    url: https://github.com/aackad21/battleship2/wiki
+    about: Read the wiki; it may already answer your question.
+  - name: Report a security problem
+    url: https://github.com/aackad21/battleship2/security/advisories/new
+    about: Report vulnerabilities privately, never as a public issue.

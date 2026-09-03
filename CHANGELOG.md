@@ -10,6 +10,17 @@ Defect IDs (P-01, D-01, H-01..H-03, F-01..F-04) refer to the defect register in
 
 ## [Unreleased]
 
+### Added
+
+- Community health documents: `CONTRIBUTING.md`, `SECURITY.md`, `SUPPORT.md`,
+  `CODE_OF_CONDUCT.md` (Contributor Covenant 2.1), `.github/CODEOWNERS`, a pull
+  request template, and structured bug/feature issue forms.
+
+### Changed
+
+- CI now triggers only on `master`; the legacy `devin/1788265893-testing-fixes`
+  branch has been deleted.
+
 ## [1.0.0] - 2026-09-03
 
 First tagged release. `package.json` has carried `1.0.0` since the first
