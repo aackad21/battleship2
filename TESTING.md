@@ -221,6 +221,7 @@ claim and were unaffected.
 | 2026-09-02 | `99ca797` | Chrome 1280×800, 390×844 spot check | Pass, one P3 | [Power-mode acceptance run](#power-mode-browser-acceptance-run-99ca797) that raised P-01. |
 | 2026-09-02 | `3d732b4` → `3aa72b5` | Chrome 1280×800, 390×844 | Pass, one P2 | [Drag deployment acceptance run](#drag-deployment-browser-acceptance-run-3d732b4) that raised and re-verified D-01. |
 | 2026-09-02 | `1a5abc9` | Chrome 1280×800, 390×844 | Pass, no defects | [Heads-up card acceptance run](#heads-up-card-browser-acceptance-run-1a5abc9). |
+| 2026-09-03 | `955f460`, live deployment | Chrome 1600 px, 390×844 | Pass, no defects | [Release readiness run](#release-readiness-run-955f460) across Classic, Power, variants, Daily, replays, and persistence. |
 
 ### Power-mode browser acceptance run (`99ca797`)
 
@@ -296,6 +297,40 @@ so the two cannot legitimately overlap through the UI; the stacking and
 hit-testing contract was instead confirmed with a card injected into the DOM.
 This run did not revisit non-Classic variants, other commanders, the Daily
 challenge, profile persistence, or audio.
+
+### Release readiness run (`955f460`)
+
+Run against the deployed build at https://battleship2-xne9.vercel.app/ rather
+than a local server, after confirming that all eleven web-served files are
+byte-identical to `955f460`, so the deployment is provably the default branch.
+Every drag was a genuinely held pointer drag and every shot and ability a real
+click; `window.battleship` was read only as an oracle, and each scan count was
+recomputed independently from `enemyBoard.ships` geometry before comparison.
+
+Passed: Classic placement by held drag, click, rotate, and randomize, including
+an `Escape` cancellation released over a legal cell placing nothing, and a
+single click placing a ship immediately after a drop; a battle to victory with
+every overlay statistic populated; career statistics and achievements surviving
+a hard reload; replay stepping forward and back with both the label and the
+grids advancing; Power abilities and earned power-ups raising cards that match
+the combat log, staying translucent, passing clicks through, leaving the DOM at
+3.86 s, capping at three, and sitting below the victory overlay; a corner
+Cruiser Radar reporting `9-cell sector` while an interior Destroyer Sonar
+reports `3×3 sector`, both matching predicted geometry; Compact 8×8, the
+Aggressive commander, and the Daily challenge lock and restore; the full mobile
+path at 390×844 with no horizontal overflow and the feed pinned to the bottom;
+and zero console errors, warnings, or unhandled rejections and zero responses
+of 400 or worse across the whole run.
+
+Raised: nothing. One cosmetic observation, not a defect: controls locked during
+a battle are dimmed to `opacity: 0.46`, an effective contrast of about 4.06:1
+for select text and 3.12:1 for the gold Daily label. Disabled controls are
+exempt from WCAG 1.4.3, so this is recorded as polish.
+
+Not covered: the replay dialog coexisting with a card raised by gameplay, which
+remains unreachable through the UI for the reason given in the previous run;
+audio was verified by counting resolved `play()` promises rather than by
+listening.
 
 ## Browser acceptance coverage to execute
 

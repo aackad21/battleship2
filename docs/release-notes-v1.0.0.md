@@ -3,11 +3,12 @@
 Release notes for tag `v1.0.0`. Copy the body below into the GitHub Release.
 
 - Tag: `v1.0.0`
-- Target branch: `master` (the default branch;
-  `devin/1788265893-testing-fixes` is a legacy alias kept at the same commit)
+- Target branch: `master`, the only branch
 - Title: `Battleship: Fleet Command v1.0.0`
-- Notes based on: `f932d8b`, which includes the CI workflow, the MIT license,
-  the rewritten README, the changelog, and the settings documentation.
+- Published at: `c6cc42a`, which includes the CI workflow, the MIT license, the
+  rewritten README, the changelog, and the settings documentation. Community
+  health documents merged afterwards and are therefore not in the `v1.0.0`
+  archive; they ship with the next tag.
 
 ---
 
