@@ -67,6 +67,7 @@ const dom = {
   enemyFleetStatus: document.getElementById('enemy-fleet-status'),
   turnBanner: document.getElementById('turn-banner'),
   log: document.getElementById('log'),
+  hudFeed: document.getElementById('hud-feed'),
   powerPanel: document.getElementById('power-panel'),
   abilityList: document.getElementById('ability-list'),
   powerupList: document.getElementById('powerup-list'),
@@ -113,6 +114,9 @@ const settings = {
 };
 
 const CLICK_AFTER_DROP_MS = 250;
+const HUD_HOLD_MS = 3600;
+const HUD_FADE_MS = 260;
+const HUD_MAX_CARDS = 3;
 
 const placement = {
   selectedShipId: null,
@@ -596,6 +600,41 @@ function logMessage(message, className = '') {
   while (dom.log.children.length > 40) dom.log.lastChild?.remove();
 }
 
+function dismissHud(card) {
+  if (card.dataset.leaving) return;
+  card.dataset.leaving = 'true';
+  card.classList.remove('visible');
+  card.classList.add('leaving');
+  setTimeout(() => card.remove(), HUD_FADE_MS);
+}
+
+function announce(title, detail, { tone = '', icon = '◎' } = {}) {
+  const card = document.createElement('div');
+  card.className = tone ? `hud-card ${tone}` : 'hud-card';
+  const badge = document.createElement('span');
+  badge.className = 'hud-icon';
+  badge.setAttribute('aria-hidden', 'true');
+  badge.textContent = icon;
+  const body = document.createElement('div');
+  const heading = document.createElement('p');
+  heading.className = 'hud-title';
+  heading.textContent = title;
+  const text = document.createElement('p');
+  text.className = 'hud-detail';
+  text.textContent = detail;
+  body.append(heading, text);
+  card.append(badge, body);
+  dom.hudFeed.append(card);
+  const live = [...dom.hudFeed.children].filter((existing) => !existing.dataset.leaving);
+  live.slice(0, Math.max(0, live.length - HUD_MAX_CARDS)).forEach(dismissHud);
+  requestAnimationFrame(() => card.classList.add('visible'));
+  setTimeout(() => dismissHud(card), HUD_HOLD_MS);
+}
+
+function clearHud() {
+  dom.hudFeed.replaceChildren();
+}
+
 function fleetStatusText(board) {
   return board.ships
     .map((ship) => board.isShipSunk(ship)
@@ -879,7 +918,9 @@ function awardPowerups(outcome) {
   if (outcome.sunk) awards.push(powerState.awardNext(`${outcome.ship.name} sunk`));
   awards.filter(Boolean).forEach((award) => {
     const definition = POWERUPS.find((powerup) => powerup.id === award.id);
-    logMessage(`Power-up earned: ${definition?.name ?? award.id}.`, 'you');
+    const name = definition?.name ?? award.id;
+    logMessage(`Power-up earned: ${name}.`, 'you');
+    announce('Power-up earned', `${name} — ${award.reason}.`, { tone: 'reward', icon: '★' });
   });
 }
 
@@ -921,6 +962,10 @@ function useTargetedAction(row, col) {
     powerState.clearSelection();
     recordAbility(definition.id, { action: definition.action, row, col, contacts: result.contacts });
     flashScan(result);
+    announce(
+      definition.name,
+      `${result.contacts} unhit contact${result.contacts === 1 ? '' : 's'} in ${result.label}.`
+    );
     logMessage(`${definition.name}: ${result.contacts} unhit contact${result.contacts === 1 ? '' : 's'} in ${result.label}.`, 'you');
   } else if (definition.id === 'radar') {
     if (!actionAvailable('powerup', definition)) return true;
@@ -929,6 +974,10 @@ function useTargetedAction(row, col) {
     powerState.clearSelection();
     recordAbility('powerup-radar', { action: 'radar', row, col, contacts: result.contacts });
     flashScan(result);
+    announce(
+      'Radar scan',
+      `${result.contacts} unhit contact${result.contacts === 1 ? '' : 's'} in the sector.`
+    );
     logMessage(`Radar scan: ${result.contacts} unhit contact${result.contacts === 1 ? '' : 's'} in the sector.`, 'you');
   } else if (definition.id === 'airstrike') {
     if (!actionAvailable('powerup', definition)) return true;
@@ -967,6 +1016,7 @@ function useTargetedAction(row, col) {
       updateInteractiveState();
       return true;
     }
+    announce('Airstrike', `${outcomes.length} sectors attacked.`, { icon: '✸' });
     logMessage(`Airstrike complete: ${outcomes.length} sectors attacked.`, 'you');
   }
 
@@ -1029,6 +1079,7 @@ function useImmediateAction(kind, definition) {
     ...eventDetails,
   });
   logMessage(`${definition.name}: ${detail}.`, 'you');
+  announce(definition.name, `${detail}.`);
   renderPowers();
   updateBanner();
   updateStats();
@@ -1257,6 +1308,7 @@ function newGame({ announce = false } = {}) {
   nextHitReward = 3;
   timeline = [];
   dom.log.innerHTML = '';
+  clearHud();
   dom.overlay.classList.add('hidden');
   dom.overlay.setAttribute('aria-hidden', 'true');
   closeReplay(false);

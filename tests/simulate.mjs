@@ -663,6 +663,23 @@ function renderingLayers() {
     'the setup hint describes dragging as a real drag',
     /Drag a ship from the tray or the grid/.test(html) && /<kbd>Esc<\/kbd>/.test(html)
   );
+  check(
+    'ability and power-up results surface in a transparent heads-up card, not only the log',
+    /id="hud-feed"/.test(html) &&
+      /\.hud-feed\s*\{[^}]*position:\s*fixed/s.test(css) &&
+      /\.hud-feed\s*\{[^}]*pointer-events:\s*none/s.test(css) &&
+      /\.hud-card\s*\{[^}]*backdrop-filter:\s*blur/s.test(css) &&
+      /function announce\(/.test(main) &&
+      /announce\('Power-up earned'/.test(main) &&
+      main.match(/\n\s*announce\(/g)?.length >= 5
+  );
+  check(
+    'heads-up cards expire on their own and are cleared by a new game',
+    /HUD_HOLD_MS = \d+/.test(main) &&
+      /setTimeout\(\(\) => dismissHud\(card\), HUD_HOLD_MS\)/.test(main) &&
+      /function clearHud[\s\S]{0,120}replaceChildren\(\)/.test(main) &&
+      /dom\.log\.innerHTML = '';\n\s*clearHud\(\);/.test(main)
+  );
   const airstrikeAction = main.indexOf("const actionEvent = recordAbility('powerup-airstrike'");
   const airstrikeExecution = main.indexOf('const outcomes = executeAirstrike', airstrikeAction);
   check(
