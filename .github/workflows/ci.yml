@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - devin/1788265893-testing-fixes
+      - master
+  pull_request:
+    branches:
+      - devin/1788265893-testing-fixes
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Run test suites (npm test)
+        run: npm test
+
+      - name: Syntax check modules (node --check)
+        run: |
+          set -e
+          for file in js/*.js tests/*.mjs; do
+            echo "checking $file"
+            node --check "$file"
+          done
+
+      - name: Check for whitespace errors (git diff --check)
+        run: git diff --check "$(git hash-object -t tree /dev/null)" HEAD
