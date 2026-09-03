@@ -1,6 +1,6 @@
 {
   "name": "battleship",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Dependency-free browser Battleship with Classic and Power modes",
   "type": "module",
   "private": true,
