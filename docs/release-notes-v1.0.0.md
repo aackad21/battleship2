@@ -8,7 +8,7 @@ Release notes for tag `v1.0.0`. Copy the body below into the GitHub Release.
 - Published at: `c6cc42a`, which includes the CI workflow, the MIT license, the
   rewritten README, the changelog, and the settings documentation. Community
   health documents merged afterwards and are therefore not in the `v1.0.0`
-  archive; they ship with the next tag.
+  archive; they ship in `v1.0.1` (`release-notes-v1.0.1.md`).
 
 ---
 

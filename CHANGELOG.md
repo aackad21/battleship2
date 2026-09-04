@@ -10,6 +10,13 @@ Defect IDs (P-01, D-01, H-01..H-03, F-01..F-04) refer to the defect register in
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-09-03
+
+Documentation and repository release: no gameplay change, so the deployed game
+is unaffected. This tag exists so the downloadable archive contains the
+community health documents and the verified settings record, which merged after
+`v1.0.0` was tagged.
+
 ### Added
 
 - Community health documents: `CONTRIBUTING.md`, `SECURITY.md`, `SUPPORT.md`,
@@ -90,5 +97,6 @@ https://battleship2-xne9.vercel.app/.
 - D-01 (P2): the first board click after a drag drop was discarded. The
   one-shot click guard is now scoped to the dropped cell (#3, 2026-09-02).
 
-[Unreleased]: https://github.com/aackad21/battleship2/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/aackad21/battleship2/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/aackad21/battleship2/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/aackad21/battleship2/releases/tag/v1.0.0
